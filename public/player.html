@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PubQuiz – Mitspielen</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>🎯 PubQuiz</h1>
+  <span class="badge">Mitspieler</span>
+  <span class="status-dot" id="statusDot"></span>
+</header>
+
+<div class="container" style="max-width:650px;">
+
+  <!-- Name eingeben -->
+  <div id="nameScreen" class="card" style="margin-top:2rem;">
+    <h2 style="margin-bottom:1rem;font-size:1.1rem;">Wie heißt du?</h2>
+    <div class="flex gap-2">
+      <input type="text" id="nameInput" placeholder="Dein Name" maxlength="30" style="flex:1;" onkeydown="if(event.key==='Enter')joinGame()">
+      <button class="btn-primary" onclick="joinGame()">Mitspielen →</button>
+    </div>
+  </div>
+
+  <!-- Spielbereich -->
+  <div id="gameScreen" class="hidden">
+    <div style="margin-bottom:1rem;font-size:0.85rem;color:var(--text-muted);">
+      Spielst als: <strong id="playerNameDisplay"></strong>
+    </div>
+
+    <!-- Punktestand -->
+    <div id="scoreboardWrapper" class="hidden" style="margin-bottom:1.5rem;">
+      <div class="section-title" style="margin-bottom:0.5rem;">Punktestand</div>
+      <div class="card" id="scoreboardPlayer"></div>
+    </div>
+
+    <!-- Warten -->
+    <div id="waitingScreen" class="waiting">
+      <div class="emoji">⏳</div>
+      <h2>Warten auf den Fragenmaster…</h2>
+      <p>Die nächste Frage erscheint hier automatisch.</p>
+    </div>
+
+    <!-- Frage aktiv -->
+    <div id="questionScreen" class="hidden">
+      <div class="card">
+        <!-- Bild -->
+        <img id="questionImage" class="question-image hidden" alt="Fragenbild">
+
+        <!-- Fragetext -->
+        <div class="question-display" id="questionText"></div>
+
+        <!-- Multiple Choice -->
+        <div id="multipleChoiceArea" class="hidden">
+          <div class="answer-grid" id="answersGrid"></div>
+          <div id="confirmArea" class="hidden" style="margin-top:1rem;">
+            <button class="btn-primary" onclick="confirmAnswer()" style="width:100%;">✅ Antwort einloggen</button>
+          </div>
+        </div>
+
+        <!-- Freitext -->
+        <div id="freeTextArea" class="hidden">
+          <div class="free-answer-area">
+            <input type="text" id="freeTextInput" placeholder="Deine Antwort…" maxlength="200" onkeydown="if(event.key==='Enter')submitFreeText()">
+            <button class="btn-primary" onclick="submitFreeText()">Senden</button>
+          </div>
+        </div>
+
+        <!-- Bestätigung -->
+        <div id="answeredBadge" class="answered-badge hidden">✅ Antwort abgeschickt!</div>
+
+        <!-- Lösung -->
+        <div id="revealBanner" class="hidden">
+          <div class="reveal-banner" id="revealBannerText"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──
+let playerId = localStorage.getItem('pubquiz_player_id') || crypto.randomUUID();
+localStorage.setItem('pubquiz_player_id', playerId);
+
+let playerName = '';
+let currentQuestion = null;
+let myAnswer = null;      // submitted answer
+let pendingAnswer = null; // selected but not yet submitted (MC only)
+let ws = null;
+let gameState = null;
+
+function renderScoreboard() {
+  const scores = gameState && gameState.scores ? gameState.scores : {};
+  const entries = Object.values(scores).sort((a, b) => b.points - a.points);
+  const wrapper = document.getElementById('scoreboardWrapper');
+  const el = document.getElementById('scoreboardPlayer');
+  if (!entries.length) { wrapper.classList.add('hidden'); return; }
+  wrapper.classList.remove('hidden');
+  el.innerHTML = `<table class="answers-table">
+    <thead><tr><th>#</th><th>Spieler</th><th>Punkte</th></tr></thead>
+    <tbody>${entries.map((e, i) => `<tr>
+      <td style="color:var(--text-muted);font-size:0.85rem;">${i + 1}</td>
+      <td>${esc(e.name)}</td>
+      <td style="font-weight:600;color:var(--success);">${e.points}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ── WebSocket ──
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => {
+    setStatus(true);
+    if (playerName) send({ type: 'player_join', playerId, playerName });
+  };
+  ws.onclose = () => { setStatus(false); setTimeout(connectWS, 2000); };
+  ws.onerror = () => setStatus(false);
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'game_update') {
+      handleGameUpdate(msg);
+      renderScoreboard();
+    }
+  };
+}
+
+function setStatus(ok) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + (ok ? 'connected' : 'disconnected');
+}
+
+function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+
+// ── Name / Join ──
+function joinGame() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) { document.getElementById('nameInput').focus(); return; }
+  playerName = name;
+  document.getElementById('nameScreen').classList.add('hidden');
+  document.getElementById('gameScreen').classList.remove('hidden');
+  document.getElementById('playerNameDisplay').textContent = playerName;
+  send({ type: 'player_join', playerId, playerName });
+  if (gameState) applyGameState(gameState);
+}
+
+// ── Game state ──
+function handleGameUpdate(msg) {
+  gameState = msg;
+
+  // If question changed, reset own answer state
+  const newQId = msg.activeQuestion ? msg.activeQuestion.id : null;
+  const oldQId = currentQuestion ? currentQuestion.id : null;
+  if (newQId !== oldQId) {
+    myAnswer = null;
+    pendingAnswer = null;
+    const fti = document.getElementById('freeTextInput');
+    if (fti) fti.value = '';
+  }
+
+  currentQuestion = msg.activeQuestion;
+  if (playerName) applyGameState(msg);
+}
+
+function applyGameState(msg) {
+  const q = msg.activeQuestion;
+
+  if (!q) {
+    showWaiting();
+    return;
+  }
+
+  document.getElementById('waitingScreen').classList.add('hidden');
+  document.getElementById('questionScreen').classList.remove('hidden');
+
+  // Image
+  const imgEl = document.getElementById('questionImage');
+  if (q.image) {
+    imgEl.src = q.image;
+    imgEl.classList.remove('hidden');
+  } else {
+    imgEl.classList.add('hidden');
+  }
+
+  // Text
+  document.getElementById('questionText').textContent = q.text;
+
+  // Answer area
+  const hasOptions = q.options && q.options.length > 0;
+  document.getElementById('multipleChoiceArea').classList.toggle('hidden', !hasOptions);
+  document.getElementById('freeTextArea').classList.toggle('hidden', hasOptions);
+
+  if (hasOptions) renderOptions(q, msg.showAnswer);
+  else renderFreeText(msg.showAnswer);
+
+  // Reveal
+  const bannerEl = document.getElementById('revealBanner');
+  const bannerText = document.getElementById('revealBannerText');
+  if (msg.showAnswer && q.correctAnswer !== null && q.correctAnswer !== undefined) {
+    // MC: visual feedback already via button classes; just show correct answer text
+    const correctText = q.options && q.options.length ? q.options[q.correctAnswer] : String(q.correctAnswer);
+    bannerText.textContent = `✅ Richtige Antwort: ${correctText}`;
+    bannerEl.classList.remove('hidden');
+  } else if (msg.showAnswer && q.correctAnswerText) {
+    // Free text: show correct answer + personal result
+    const myAnswered = myAnswer !== null;
+    const myCorrect = myAnswered && String(myAnswer).toLowerCase().trim() === String(q.correctAnswerText).toLowerCase().trim();
+    let text = `Richtige Antwort: ${q.correctAnswerText}`;
+    if (myAnswered) text = (myCorrect ? '✅ Richtig! ' : '❌ Falsch. ') + text;
+    else text = '🔓 ' + text;
+    bannerText.textContent = text;
+    bannerEl.classList.remove('hidden');
+  } else if (msg.showAnswer) {
+    bannerText.textContent = '🔓 Der Fragenmaster hat die Antworten aufgedeckt.';
+    bannerEl.classList.remove('hidden');
+  } else {
+    bannerEl.classList.add('hidden');
+  }
+}
+
+function showWaiting() {
+  document.getElementById('waitingScreen').classList.remove('hidden');
+  document.getElementById('questionScreen').classList.add('hidden');
+}
+
+function renderOptions(q, showAnswer) {
+  const grid = document.getElementById('answersGrid');
+  const letters = ['A', 'B', 'C', 'D'];
+  const answered = myAnswer !== null;
+
+  grid.innerHTML = q.options.map((opt, i) => {
+    let cls = 'answer-btn';
+    if (answered && String(myAnswer) === String(i)) cls += ' selected';
+    else if (!answered && pendingAnswer !== null && String(pendingAnswer) === String(i)) cls += ' selected';
+    if (showAnswer) {
+      if (i === q.correctAnswer) cls += ' correct-reveal';
+      else if (answered && String(myAnswer) === String(i)) cls += ' wrong-reveal';
+    }
+    return `<button class="${cls}" onclick="selectOption(${i})" ${answered || showAnswer ? 'disabled' : ''}>
+      <span class="letter">${letters[i]}</span>
+      <span>${esc(opt)}</span>
+    </button>`;
+  }).join('');
+
+  document.getElementById('answeredBadge').classList.toggle('hidden', !answered);
+  document.getElementById('confirmArea').classList.toggle('hidden', answered || pendingAnswer === null || showAnswer);
+}
+
+function renderFreeText(showAnswer) {
+  const answered = myAnswer !== null;
+  document.getElementById('freeTextInput').disabled = answered || showAnswer;
+  document.getElementById('answeredBadge').classList.toggle('hidden', !answered);
+  if (answered) document.getElementById('freeTextInput').value = myAnswer;
+}
+
+// ── Answers ──
+function selectOption(idx) {
+  if (myAnswer !== null) return;
+  pendingAnswer = idx;
+  if (currentQuestion) renderOptions(currentQuestion, gameState ? gameState.showAnswer : false);
+}
+
+function confirmAnswer() {
+  if (myAnswer !== null || pendingAnswer === null) return;
+  myAnswer = pendingAnswer;
+  send({ type: 'player_answer', playerId, playerName, answer: myAnswer });
+  if (currentQuestion) renderOptions(currentQuestion, gameState ? gameState.showAnswer : false);
+}
+
+function submitFreeText() {
+  const val = document.getElementById('freeTextInput').value.trim();
+  if (!val || myAnswer !== null) return;
+  myAnswer = val;
+  send({ type: 'player_answer', playerId, playerName, answer: val });
+  document.getElementById('freeTextInput').disabled = true;
+  document.getElementById('answeredBadge').classList.remove('hidden');
+}
+
+// ── Utils ──
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ──
+connectWS();
+
+// If name was previously saved
+const savedName = localStorage.getItem('pubquiz_player_name');
+if (savedName) {
+  document.getElementById('nameInput').value = savedName;
+}
+document.getElementById('nameInput').addEventListener('input', e => {
+  localStorage.setItem('pubquiz_player_name', e.target.value);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PubQuiz – Fragenmaster</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>🎤 PubQuiz</h1>
+  <span class="badge">Fragenmaster</span>
+  <span class="status-dot" id="statusDot" title="Verbindungsstatus"></span>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" data-tab="play">Spielen</button>
+    <button class="tab" data-tab="scores">Punkte</button>
+    <button class="tab" data-tab="edit">Fragen verwalten</button>
+  </div>
+
+  <!-- ═══ TAB: SPIELEN ═══ -->
+  <div class="tab-content active" id="tab-play">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
+
+      <!-- Fragenliste zum Auswählen -->
+      <div>
+        <div class="section-title">Frage auswählen</div>
+        <div class="questions-list" id="playQuestionList">
+          <div class="empty-hint">Noch keine Fragen. Erstelle erst Fragen im Tab "Fragen verwalten".</div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <button class="btn-ghost" onclick="setQuestion(null)">⏹ Keine Frage anzeigen</button>
+        </div>
+      </div>
+
+      <!-- Spielsteuerung -->
+      <div>
+        <div class="section-title">Spielsteuerung</div>
+        <div class="card" id="controlPanel">
+          <div id="noActiveQ" class="empty-hint" style="padding:1rem 0;">
+            Wähle links eine Frage aus, um sie zu starten.
+          </div>
+          <div id="activeQPanel" class="hidden">
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;">Aktive Frage:</div>
+            <div id="activeQText" style="font-weight:600;margin-bottom:1rem;"></div>
+            <div id="activeQImage" style="margin-bottom:1rem;"></div>
+
+            <!-- Spielerstatus -->
+            <div id="playerStats" style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+              <span id="statTotal" style="font-size:0.85rem;padding:0.3rem 0.7rem;background:var(--bg-card);border-radius:99px;border:1px solid var(--border);">👥 0 Spieler</span>
+              <span id="statAnswered" style="font-size:0.85rem;padding:0.3rem 0.7rem;background:var(--bg-card);border-radius:99px;border:1px solid var(--border);color:var(--success);">✅ 0 geantwortet</span>
+              <span id="statPending" style="font-size:0.85rem;padding:0.3rem 0.7rem;background:var(--bg-card);border-radius:99px;border:1px solid var(--border);color:var(--text-muted);">⏳ 0 ausstehend</span>
+            </div>
+
+            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+              <button class="btn-success" id="revealBtn" onclick="revealAnswer()">✅ Lösung aufdecken</button>
+              <button class="btn-ghost" id="hideBtn" onclick="hideAnswer()" style="display:none">🔄 Antworten zurücksetzen</button>
+            </div>
+
+            <div class="mt-4">
+              <div class="section-title" style="margin-bottom:0.5rem;">Antworten der Spieler</div>
+              <div id="answersContainer">
+                <div class="empty-hint" style="padding:0.5rem 0;">Noch keine Antworten.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: PUNKTE ═══ -->
+  <div class="tab-content" id="tab-scores">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <div class="section-title" style="margin:0;">Punktestand</div>
+      <button class="btn-danger" onclick="resetScores()">🗑 Punkte zurücksetzen</button>
+    </div>
+    <div class="card" id="scoreboardMaster">
+      <div class="empty-hint">Noch keine Punkte vergeben.</div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: FRAGEN VERWALTEN ═══ -->
+  <div class="tab-content" id="tab-edit">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <div class="section-title" style="margin:0;">Alle Fragen</div>
+      <button class="btn-primary" onclick="openCreateModal()">+ Neue Frage</button>
+    </div>
+    <div class="questions-list" id="editQuestionList">
+      <div class="empty-hint">Noch keine Fragen.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Frage erstellen/bearbeiten ═══ -->
+<div class="modal-overlay hidden" id="questionModal">
+  <div class="modal">
+    <h2 id="modalTitle">Neue Frage erstellen</h2>
+
+    <div class="form-group">
+      <label>Fragetext *</label>
+      <textarea id="qText" placeholder="Wie lautet die Frage?"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Bild (optional)</label>
+      <div class="image-drop" id="imageDrop">
+        <input type="file" id="imageFile" accept="image/*" onchange="handleImageSelect(event)">
+        <span id="imageDropLabel">Bild hier ablegen oder klicken zum Auswählen</span>
+        <img id="imagePreview" class="image-preview hidden" alt="Vorschau">
+        <button type="button" class="btn-ghost mt-2 hidden" id="removeImageBtn" onclick="removeImage()" style="font-size:0.8rem;">✕ Bild entfernen</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Antwortmöglichkeiten (0–4, optional)</label>
+      <div class="options-list" id="optionsList"></div>
+      <button type="button" class="btn-ghost mt-2" id="addOptionBtn" onclick="addOption()" style="font-size:0.85rem;">+ Option hinzufügen</button>
+    </div>
+
+    <div class="form-group" id="correctAnswerTextGroup">
+      <label>Richtige Antwort (für Auflösung, optional)</label>
+      <input type="text" id="correctAnswerText" placeholder="z.B. Paris">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">Abbrechen</button>
+      <button class="btn-primary" onclick="saveQuestion()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let questions = [];
+let gameState = { activeQuestionId: null, showAnswer: false, playerAnswers: [], scores: {}, players: [] };
+let editingId = null;
+let pendingImageFile = null;
+let currentImagePath = null;
+let correctAnswerIdx = null;
+let ws = null;
+
+// ── WebSocket ──
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  ws.onopen = () => setStatus(true);
+  ws.onclose = () => { setStatus(false); setTimeout(connectWS, 2000); };
+  ws.onerror = () => setStatus(false);
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'game_update') {
+      gameState = msg;
+      renderPlayTab();
+      renderScoreboard('scoreboardMaster');
+    }
+  };
+}
+
+function setStatus(ok) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + (ok ? 'connected' : 'disconnected');
+}
+
+function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+
+// ── Load questions ──
+async function loadQuestions() {
+  const res = await fetch('/api/questions');
+  const data = await res.json();
+  questions = data.questions;
+  renderEditTab();
+  renderPlayTab();
+}
+
+// ── Tabs ──
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Play tab rendering ──
+function renderPlayTab() {
+  renderPlayList();
+  renderControlPanel();
+}
+
+function renderPlayList() {
+  const el = document.getElementById('playQuestionList');
+  if (!questions.length) { el.innerHTML = '<div class="empty-hint">Noch keine Fragen. Erstelle erst Fragen im Tab "Fragen verwalten".</div>'; return; }
+  el.innerHTML = questions.map((q, i) => {
+    const isActive = gameState.activeQuestion && gameState.activeQuestion.id === q.id;
+    return `<div class="question-item ${isActive ? 'active-q' : ''}">
+      <div class="q-number">${i + 1}</div>
+      <div class="q-body">
+        <div class="q-text">${esc(q.text)}</div>
+        <div class="q-meta">${q.options.length ? q.options.length + ' Antwortoptionen' : 'Freitext'}</div>
+      </div>
+      <div class="q-actions">
+        <button class="btn-primary" onclick="setQuestion('${q.id}')">▶ Spielen</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderControlPanel() {
+  const aq = gameState.activeQuestion;
+  document.getElementById('noActiveQ').classList.toggle('hidden', !!aq);
+  document.getElementById('activeQPanel').classList.toggle('hidden', !aq);
+
+  if (!aq) return;
+
+  document.getElementById('activeQText').textContent = aq.text;
+  const imgEl = document.getElementById('activeQImage');
+  imgEl.innerHTML = aq.image ? `<img src="${aq.image}" style="max-width:100%;max-height:150px;border-radius:8px;object-fit:contain;">` : '';
+
+  const revealBtn = document.getElementById('revealBtn');
+  const hideBtn = document.getElementById('hideBtn');
+  revealBtn.style.display = gameState.showAnswer ? 'none' : '';
+  hideBtn.style.display = gameState.showAnswer ? '' : 'none';
+
+  // Player stats
+  const allPlayers = gameState.players || [];
+  const answered = allPlayers.filter(p => p.hasAnswered).length;
+  const pending = allPlayers.length - answered;
+  document.getElementById('statTotal').textContent = `👥 ${allPlayers.length} Spieler`;
+  document.getElementById('statAnswered').textContent = `✅ ${answered} geantwortet`;
+  document.getElementById('statPending').textContent = `⏳ ${pending} ausstehend`;
+
+  // Answers table
+  const container = document.getElementById('answersContainer');
+  const playerAnswers = gameState.playerAnswers;
+
+  if (Object.keys(playerAnswers).length === 0) {
+    container.innerHTML = '<div class="empty-hint" style="padding:0.5rem 0;">Noch keine Antworten.</div>';
+    return;
+  }
+
+  const rows = Object.values(playerAnswers).map(a => {
+    let answerDisplay = esc(String(a.answer));
+    let correctClass = '';
+    if (gameState.showAnswer && aq.correctAnswer !== undefined && aq.correctAnswer !== null) {
+      const correct = Number(a.answer) === Number(aq.correctAnswer);
+      correctClass = correct ? 'answer-correct-cell' : 'answer-wrong-cell';
+      if (aq.options && aq.options.length) {
+        answerDisplay = esc(aq.options[a.answer] || String(a.answer));
+      }
+    } else if (gameState.showAnswer && aq.correctAnswerText) {
+      const correct = String(a.answer).toLowerCase().trim() === String(aq.correctAnswerText).toLowerCase().trim();
+      correctClass = correct ? 'answer-correct-cell' : 'answer-wrong-cell';
+    } else if (aq.options && aq.options.length) {
+      answerDisplay = esc(aq.options[a.answer] || String(a.answer));
+    }
+    return `<tr><td>${esc(a.name)}</td><td class="${correctClass}">${answerDisplay}</td></tr>`;
+  });
+
+  container.innerHTML = `<table class="answers-table">
+    <thead><tr><th>Spieler</th><th>Antwort</th></tr></thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>`;
+}
+
+// ── Game actions ──
+function setQuestion(id) { send({ type: 'master_set_question', questionId: id }); }
+function revealAnswer() { send({ type: 'master_reveal_answer' }); }
+function hideAnswer() { send({ type: 'master_hide_answer' }); }
+function resetScores() {
+  if (!confirm('Alle Punkte wirklich zurücksetzen?')) return;
+  send({ type: 'master_reset_scores' });
+}
+
+// ── Scoreboard ──
+function renderScoreboard(containerId) {
+  const el = document.getElementById(containerId);
+  const scores = gameState.scores || {};
+  const entries = Object.values(scores).sort((a, b) => b.points - a.points);
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty-hint">Noch keine Punkte vergeben.</div>';
+    return;
+  }
+  el.innerHTML = `<table class="answers-table">
+    <thead><tr><th>#</th><th>Spieler</th><th>Punkte</th></tr></thead>
+    <tbody>${entries.map((e, i) => `<tr>
+      <td style="color:var(--text-muted);font-size:0.85rem;">${i + 1}</td>
+      <td>${esc(e.name)}</td>
+      <td style="font-weight:600;color:var(--success);">${e.points}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ── Edit tab rendering ──
+function renderEditTab() {
+  const el = document.getElementById('editQuestionList');
+  if (!questions.length) { el.innerHTML = '<div class="empty-hint">Noch keine Fragen.</div>'; return; }
+  el.innerHTML = questions.map((q, i) => `
+    <div class="question-item">
+      <div class="q-number">${i + 1}</div>
+      <div class="q-body">
+        <div class="q-text">${esc(q.text)}</div>
+        <div class="q-meta">
+          ${q.options.length ? q.options.map((o, oi) => `<span style="color:${oi === q.correctAnswer ? 'var(--success)' : 'inherit'}">${esc(o)}${oi === q.correctAnswer ? ' ✓' : ''}</span>`).join(' · ') : (q.correctAnswerText ? `Freitext · Lösung: <span style="color:var(--success)">${esc(q.correctAnswerText)}</span>` : 'Freitext-Antwort')}
+          ${q.image ? ' · 🖼️ Bild' : ''}
+        </div>
+      </div>
+      <div class="q-actions">
+        <button class="btn-ghost btn-icon" title="Bearbeiten" onclick="openEditModal('${q.id}')">✏️</button>
+        <button class="btn-danger btn-icon" title="Löschen" onclick="deleteQuestion('${q.id}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── Modal ──
+let optionCount = 0;
+
+function openCreateModal() {
+  editingId = null;
+  pendingImageFile = null;
+  currentImagePath = null;
+  correctAnswerIdx = null;
+  optionCount = 0;
+  document.getElementById('modalTitle').textContent = 'Neue Frage erstellen';
+  document.getElementById('qText').value = '';
+  document.getElementById('optionsList').innerHTML = '';
+  document.getElementById('imagePreview').classList.add('hidden');
+  document.getElementById('removeImageBtn').classList.add('hidden');
+  document.getElementById('imageDropLabel').textContent = 'Bild hier ablegen oder klicken zum Auswählen';
+  document.getElementById('addOptionBtn').style.display = '';
+  document.getElementById('correctAnswerText').value = '';
+  document.getElementById('correctAnswerTextGroup').classList.remove('hidden');
+  document.getElementById('questionModal').classList.remove('hidden');
+}
+
+function openEditModal(id) {
+  const q = questions.find(x => x.id === id);
+  if (!q) return;
+  editingId = id;
+  pendingImageFile = null;
+  currentImagePath = q.image || null;
+  correctAnswerIdx = q.correctAnswer !== undefined ? q.correctAnswer : null;
+  optionCount = 0;
+  document.getElementById('modalTitle').textContent = 'Frage bearbeiten';
+  document.getElementById('qText').value = q.text;
+
+  // Image
+  if (q.image) {
+    document.getElementById('imagePreview').src = q.image;
+    document.getElementById('imagePreview').classList.remove('hidden');
+    document.getElementById('removeImageBtn').classList.remove('hidden');
+    document.getElementById('imageDropLabel').textContent = '';
+  } else {
+    document.getElementById('imagePreview').classList.add('hidden');
+    document.getElementById('removeImageBtn').classList.add('hidden');
+    document.getElementById('imageDropLabel').textContent = 'Bild hier ablegen oder klicken zum Auswählen';
+  }
+
+  // Options
+  document.getElementById('optionsList').innerHTML = '';
+  q.options.forEach(opt => addOption(opt));
+  document.getElementById('addOptionBtn').style.display = optionCount >= 4 ? 'none' : '';
+  // Freitext-Lösung
+  document.getElementById('correctAnswerText').value = q.correctAnswerText || '';
+  document.getElementById('correctAnswerTextGroup').classList.toggle('hidden', q.options.length > 0);
+  document.getElementById('questionModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('questionModal').classList.add('hidden');
+}
+
+function addOption(value = '') {
+  if (optionCount >= 4) return;
+  const idx = optionCount++;
+  const li = document.createElement('div');
+  li.className = 'option-row';
+  li.dataset.idx = idx;
+  li.innerHTML = `
+    <button type="button" class="option-correct ${correctAnswerIdx === idx ? 'selected' : ''}" title="Als korrekt markieren" onclick="setCorrect(${idx})">✓</button>
+    <input type="text" placeholder="Antwort ${String.fromCharCode(65 + idx)}" value="${esc(value)}" oninput="syncOptionText(${idx}, this.value)">
+    <button type="button" class="btn-ghost btn-icon" onclick="removeOption(this)" title="Entfernen">✕</button>
+  `;
+  document.getElementById('optionsList').appendChild(li);
+  if (optionCount >= 4) document.getElementById('addOptionBtn').style.display = 'none';
+  document.getElementById('correctAnswerTextGroup').classList.add('hidden');
+}
+
+function removeOption(btn) {
+  const row = btn.closest('.option-row');
+  row.remove();
+  // Re-index
+  optionCount = 0;
+  correctAnswerIdx = null;
+  const rows = document.querySelectorAll('#optionsList .option-row');
+  rows.forEach((r, i) => {
+    r.dataset.idx = i;
+    optionCount = i + 1;
+    const correctBtn = r.querySelector('.option-correct');
+    const input = r.querySelector('input');
+    input.placeholder = `Antwort ${String.fromCharCode(65 + i)}`;
+    // Reset correct button onclick
+    correctBtn.onclick = () => setCorrect(i);
+    correctBtn.classList.remove('selected');
+  });
+  document.getElementById('addOptionBtn').style.display = optionCount >= 4 ? 'none' : '';
+  document.getElementById('correctAnswerTextGroup').classList.toggle('hidden', optionCount > 0);
+}
+
+function setCorrect(idx) {
+  correctAnswerIdx = correctAnswerIdx === idx ? null : idx;
+  document.querySelectorAll('#optionsList .option-correct').forEach((btn, i) => {
+    btn.classList.toggle('selected', i === correctAnswerIdx);
+  });
+}
+
+function syncOptionText(idx, val) { /* value read from DOM on save */ }
+
+function handleImageSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingImageFile = file;
+  const url = URL.createObjectURL(file);
+  document.getElementById('imagePreview').src = url;
+  document.getElementById('imagePreview').classList.remove('hidden');
+  document.getElementById('removeImageBtn').classList.remove('hidden');
+  document.getElementById('imageDropLabel').textContent = '';
+}
+
+function removeImage() {
+  pendingImageFile = null;
+  currentImagePath = null;
+  document.getElementById('imagePreview').classList.add('hidden');
+  document.getElementById('removeImageBtn').classList.add('hidden');
+  document.getElementById('imageDropLabel').textContent = 'Bild hier ablegen oder klicken zum Auswählen';
+  document.getElementById('imageFile').value = '';
+}
+
+// Drag & drop
+const drop = document.getElementById('imageDrop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    pendingImageFile = file;
+    const url = URL.createObjectURL(file);
+    document.getElementById('imagePreview').src = url;
+    document.getElementById('imagePreview').classList.remove('hidden');
+    document.getElementById('removeImageBtn').classList.remove('hidden');
+    document.getElementById('imageDropLabel').textContent = '';
+  }
+});
+
+async function saveQuestion() {
+  const text = document.getElementById('qText').value.trim();
+  if (!text) { alert('Bitte gib einen Fragetext ein.'); return; }
+
+  const optionInputs = document.querySelectorAll('#optionsList .option-row input[type=text]');
+  const options = [...optionInputs].map(i => i.value.trim()).filter(Boolean);
+
+  const correctAnswerText = document.getElementById('correctAnswerText').value.trim();
+  const body = {
+    text,
+    options,
+    correctAnswer: options.length > 0 ? correctAnswerIdx : null,
+    correctAnswerText: options.length === 0 ? (correctAnswerText || null) : null,
+  };
+
+  let savedQ;
+  if (editingId) {
+    const res = await fetch(`/api/questions/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    savedQ = await res.json();
+    // Handle image removal
+    const origQ = questions.find(q => q.id === editingId);
+    if (origQ && origQ.image && currentImagePath === null && !pendingImageFile) {
+      await fetch(`/api/questions/${editingId}/image`, { method: 'DELETE' });
+    }
+  } else {
+    const res = await fetch('/api/questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    savedQ = await res.json();
+  }
+
+  // Upload image if selected
+  if (pendingImageFile && savedQ.id) {
+    const fd = new FormData();
+    fd.append('image', pendingImageFile);
+    await fetch(`/api/questions/${savedQ.id}/image`, { method: 'POST', body: fd });
+  }
+
+  closeModal();
+  await loadQuestions();
+}
+
+async function deleteQuestion(id) {
+  if (!confirm('Frage wirklich löschen?')) return;
+  await fetch(`/api/questions/${id}`, { method: 'DELETE' });
+  await loadQuestions();
+}
+
+// ── Utils ──
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ──
+connectWS();
+loadQuestions();
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PubQuiz</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .start-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:80vh; text-align:center; gap:2rem; }
+    .start-screen h1 { font-size:3rem; color:var(--accent); }
+    .start-screen p { color:var(--text-muted); font-size:1.1rem; }
+    .role-cards { display:flex; gap:1.5rem; flex-wrap:wrap; justify-content:center; }
+    .role-card {
+      background:var(--surface);
+      border:2px solid var(--border);
+      border-radius:var(--radius);
+      padding:2rem 2.5rem;
+      text-decoration:none;
+      color:var(--text);
+      transition:border-color 0.2s, transform 0.2s;
+      min-width:220px;
+    }
+    .role-card:hover { border-color:var(--accent); transform:translateY(-4px); }
+    .role-card .icon { font-size:3rem; margin-bottom:0.8rem; }
+    .role-card h2 { font-size:1.2rem; margin-bottom:0.4rem; }
+    .role-card p { font-size:0.85rem; color:var(--text-muted); }
+  </style>
+</head>
+<body>
+<div class="start-screen">
+  <div>
+    <h1>🎉 PubQuiz</h1>
+    <p>Wähle deine Rolle:</p>
+  </div>
+  <div class="role-cards">
+    <a href="/master.html" class="role-card">
+      <div class="icon">🎤</div>
+      <h2>Fragenmaster</h2>
+      <p>Fragen erstellen, Spiel steuern, Lösungen aufdecken</p>
+    </a>
+    <a href="/player.html" class="role-card">
+      <div class="icon">🎯</div>
+      <h2>Mitspieler</h2>
+      <p>Fragen beantworten und mitspielen</p>
+    </a>
+  </div>
+</div>
+</body>
+</html>

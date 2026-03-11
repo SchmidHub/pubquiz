@@ -1,0 +1,26 @@
+{
+  "questions": [
+    {
+      "id": "65453f78-45a2-43ff-b85d-b4943d3489d3",
+      "text": "Wie groß ist ein Huhn?",
+      "image": "/uploads/5ebc8771-b0d3-417d-a715-b3423e2e1b9d.webp",
+      "options": [
+        "50cm",
+        "60cm",
+        "Huhngröße"
+      ],
+      "correctAnswer": 2,
+      "correctAnswerText": null,
+      "createdAt": "2026-03-11T09:58:22.552Z"
+    },
+    {
+      "id": "0944786e-d022-44e1-83cb-d528a7385b8c",
+      "text": "Welcher Tag ist heute?",
+      "image": "/uploads/1265aed0-3b0c-4145-9643-be46240e40c9.webp",
+      "options": [],
+      "correctAnswer": null,
+      "correctAnswerText": "Mittwoch",
+      "createdAt": "2026-03-11T09:58:48.136Z"
+    }
+  ]
+}
