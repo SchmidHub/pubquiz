@@ -102,6 +102,17 @@
           </div>
         </div>
 
+        <!-- Schätzfrage -->
+        <div id="estimateArea" class="hidden">
+          <div class="free-answer-area">
+            <input type="text" id="estimateInput" placeholder="Deine Schätzung…"
+                   oninput="filterEstimateInput(this)"
+                   onkeydown="if(event.key==='Enter')submitEstimate()">
+            <button class="btn-primary" id="estimateSubmitBtn" onclick="submitEstimate()">Senden</button>
+          </div>
+          <div id="estimateRevealList" class="hidden" style="margin-top:1rem;"></div>
+        </div>
+
         <!-- Bestätigung -->
         <div id="answeredBadge" class="answered-badge hidden">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>
@@ -190,6 +201,10 @@ function handleGameUpdate(msg) {
     myAnswer = null; pendingAnswer = null; revealAnimated = false;
     const fti = document.getElementById('freeTextInput');
     if (fti) fti.value = '';
+    const eti = document.getElementById('estimateInput');
+    if (eti) { eti.value = ''; eti.disabled = false; }
+    const esb = document.getElementById('estimateSubmitBtn');
+    if (esb) esb.disabled = false;
   }
   currentQuestion = msg.activeQuestion;
   if (playerName) applyGameState(msg);
@@ -203,28 +218,50 @@ function applyGameState(msg) {
   const imgEl = document.getElementById('questionImage');
   if (q.image) { imgEl.src = q.image; imgEl.classList.remove('hidden'); } else imgEl.classList.add('hidden');
   document.getElementById('questionText').textContent = q.text;
-  const hasOptions = q.options && q.options.length > 0;
-  document.getElementById('multipleChoiceArea').classList.toggle('hidden', !hasOptions);
-  document.getElementById('freeTextArea').classList.toggle('hidden', hasOptions);
-  if (hasOptions) renderOptions(q, msg.showAnswer); else renderFreeText(msg.showAnswer);
+  const qType = q.type || (q.options && q.options.length > 0 ? 'multiple' : 'freetext');
+  document.getElementById('multipleChoiceArea').classList.toggle('hidden', qType !== 'multiple');
+  document.getElementById('freeTextArea').classList.toggle('hidden', qType !== 'freetext');
+  document.getElementById('estimateArea').classList.toggle('hidden', qType !== 'estimate');
+  if (qType === 'multiple') renderOptions(q, msg.showAnswer);
+  else if (qType === 'freetext') renderFreeText(msg.showAnswer);
+  else renderEstimate(q, msg.showAnswer, msg);
   const bannerEl    = document.getElementById('revealBanner');
   const bannerInner = document.getElementById('revealBannerInner');
   const bannerText  = document.getElementById('revealBannerText');
   bannerInner.classList.remove('result-correct', 'result-wrong');
   if (msg.showAnswer) {
     const myAnswered = myAnswer !== null;
+    const qType = q.type || (q.options && q.options.length > 0 ? 'multiple' : 'freetext');
     let correctText = '', myCorrect = false;
-    if (q.correctAnswer !== null && q.correctAnswer !== undefined) {
+    if (qType === 'estimate' && q.correctAnswerNumber != null) {
+      const correct = q.correctAnswerNumber;
+      const dispNum = Number.isInteger(correct) ? correct : String(correct).replace('.', ',');
+      correctText = String(dispNum);
+      if (myAnswered) {
+        const allAnswers = Object.entries(msg.playerAnswers || {}).map(([,pa]) => parseFloat(String(pa.answer).replace(',', '.'))).filter(v => !isNaN(v));
+        const myVal = parseFloat(String(myAnswer).replace(',', '.'));
+        if (!isNaN(myVal) && allAnswers.length > 0) {
+          const minDist = Math.min(...allAnswers.map(v => Math.abs(v - correct)));
+          myCorrect = Math.abs(myVal - correct) === minDist;
+        }
+      }
+      bannerText.textContent = `Richtige Antwort: ${correctText}`;
+      if (myAnswered) bannerInner.classList.add(myCorrect ? 'result-correct' : 'result-wrong');
+    } else if (q.correctAnswer !== null && q.correctAnswer !== undefined) {
       correctText = q.options && q.options.length ? q.options[q.correctAnswer] : String(q.correctAnswer);
       myCorrect = myAnswered && Number(myAnswer) === Number(q.correctAnswer);
+      bannerText.textContent = correctText
+        ? (myAnswered ? (myCorrect ? 'Richtig — ' : 'Falsch — ') : '') + `Richtige Antwort: ${correctText}`
+        : 'Der Fragenmaster hat die Antworten aufgedeckt.';
+      if (myAnswered && correctText) bannerInner.classList.add(myCorrect ? 'result-correct' : 'result-wrong');
     } else if (q.correctAnswerText) {
       correctText = q.correctAnswerText;
       myCorrect = myAnswered && String(myAnswer).toLowerCase().trim() === String(q.correctAnswerText).toLowerCase().trim();
+      bannerText.textContent = (myAnswered ? (myCorrect ? 'Richtig — ' : 'Falsch — ') : '') + `Richtige Antwort: ${correctText}`;
+      if (myAnswered) bannerInner.classList.add(myCorrect ? 'result-correct' : 'result-wrong');
+    } else {
+      bannerText.textContent = 'Der Fragenmaster hat die Antworten aufgedeckt.';
     }
-    bannerText.textContent = correctText
-      ? (myAnswered ? (myCorrect ? 'Richtig — ' : 'Falsch — ') : '') + `Richtige Antwort: ${correctText}`
-      : 'Der Fragenmaster hat die Antworten aufgedeckt.';
-    if (myAnswered && correctText) bannerInner.classList.add(myCorrect ? 'result-correct' : 'result-wrong');
     bannerEl.classList.remove('hidden');
   } else {
     bannerEl.classList.add('hidden');
@@ -271,6 +308,70 @@ function renderFreeText(showAnswer) {
   document.getElementById('freeTextInput').disabled = answered || showAnswer;
   document.getElementById('answeredBadge').classList.toggle('hidden', !answered);
   if (answered) document.getElementById('freeTextInput').value = myAnswer;
+}
+
+function renderEstimate(q, showAnswer, msg) {
+  const answered = myAnswer !== null;
+  const input = document.getElementById('estimateInput');
+  const submitBtn = document.getElementById('estimateSubmitBtn');
+  input.disabled = answered || showAnswer;
+  submitBtn.disabled = answered || showAnswer;
+  if (answered) input.value = myAnswer;
+  document.getElementById('answeredBadge').classList.toggle('hidden', !answered);
+  const listEl = document.getElementById('estimateRevealList');
+  if (showAnswer && q.correctAnswerNumber != null) {
+    const correct = q.correctAnswerNumber;
+    const allAnswers = Object.entries(msg.playerAnswers || {}).map(([pid, pa]) => ({
+      pid, name: pa.name, raw: pa.answer, val: parseFloat(String(pa.answer).replace(',', '.'))
+    })).filter(x => !isNaN(x.val));
+    allAnswers.sort((a, b) => Math.abs(a.val - correct) - Math.abs(b.val - correct));
+    if (allAnswers.length > 0) {
+      const minDist = Math.abs(allAnswers[0].val - correct);
+      listEl.innerHTML = allAnswers.map((a, i) => {
+        const dist = Math.abs(a.val - correct);
+        const isWinner = dist === minDist;
+        const isMe = a.pid === playerId;
+        let cls = 'estimate-item';
+        if (isWinner) cls += ' estimate-winner';
+        if (isMe) cls += ' estimate-mine';
+        const diffStr = dist === 0 ? 'Genau richtig!' : `Δ ${dist.toLocaleString('de-DE')}`;
+        return `<div class="${cls}">
+          <span class="estimate-rank">${i + 1}</span>
+          <span class="estimate-value">${esc(String(a.raw))} <span class="estimate-team">(${esc(a.name)})</span></span>
+          <span class="estimate-diff">${diffStr}</span>
+        </div>`;
+      }).join('');
+      listEl.classList.remove('hidden');
+    } else {
+      listEl.classList.add('hidden');
+    }
+  } else {
+    listEl.classList.add('hidden');
+  }
+}
+
+function filterEstimateInput(el) {
+  let v = el.value;
+  v = v.replace(/[^0-9,.\-]/g, '');
+  v = v.replace(/^(-?)(.*)$/, (_, sign, rest) => sign + rest.replace(/-/g, ''));
+  let sepFound = false;
+  v = v.split('').filter(c => {
+    if (c === ',' || c === '.') { if (sepFound) return false; sepFound = true; }
+    return true;
+  }).join('');
+  el.value = v;
+}
+
+function submitEstimate() {
+  const raw = document.getElementById('estimateInput').value.trim();
+  if (!raw || myAnswer !== null) return;
+  const num = parseFloat(raw.replace(',', '.'));
+  if (isNaN(num)) return;
+  myAnswer = raw;
+  send({ type: 'player_answer', playerId, playerName, answer: raw });
+  document.getElementById('estimateInput').disabled = true;
+  document.getElementById('estimateSubmitBtn').disabled = true;
+  document.getElementById('answeredBadge').classList.remove('hidden');
 }
 
 function selectOption(idx) {

@@ -54,6 +54,13 @@ function broadcastToAll(message) {
   });
 }
 
+function getQuestionType(q) {
+  if (q.type) return q.type;
+  if (q.options && q.options.length > 0) return 'multiple';
+  if (q.correctAnswerNumber != null) return 'estimate';
+  return 'freetext';
+}
+
 function buildGameUpdate() {
   const question = getActiveQuestion();
   return {
@@ -64,9 +71,11 @@ function buildGameUpdate() {
           text: question.text,
           image: question.image || null,
           options: question.options,
+          type: getQuestionType(question),
           // only send correct answer if showing
           correctAnswer: gameState.showAnswer ? question.correctAnswer : undefined,
           correctAnswerText: gameState.showAnswer ? (question.correctAnswerText || null) : undefined,
+          correctAnswerNumber: gameState.showAnswer ? (question.correctAnswerNumber != null ? question.correctAnswerNumber : null) : undefined,
         }
       : null,
     showAnswer: gameState.showAnswer,
@@ -110,7 +119,7 @@ app.get('/api/questions', (req, res) => {
 
 // Create question
 app.post('/api/questions', (req, res) => {
-  const { text, options, correctAnswer, correctAnswerText } = req.body;
+  const { text, options, correctAnswer, correctAnswerText, type, correctAnswerNumber } = req.body;
   if (!text || typeof text !== 'string' || text.trim() === '') {
     return res.status(400).json({ error: 'Fragetext erforderlich' });
   }
@@ -119,9 +128,11 @@ app.post('/api/questions', (req, res) => {
     id: uuidv4(),
     text: text.trim(),
     image: null,
+    type: type || 'freetext',
     options: Array.isArray(options) ? options.filter(o => o && o.trim()) : [],
     correctAnswer: correctAnswer !== undefined ? correctAnswer : null,
     correctAnswerText: correctAnswerText ? correctAnswerText.trim() : null,
+    correctAnswerNumber: correctAnswerNumber != null ? Number(correctAnswerNumber) : null,
     createdAt: new Date().toISOString(),
   };
   data.questions.push(question);
@@ -135,11 +146,13 @@ app.put('/api/questions/:id', (req, res) => {
   const idx = data.questions.findIndex(q => q.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Frage nicht gefunden' });
 
-  const { text, options, correctAnswer, correctAnswerText } = req.body;
+  const { text, options, correctAnswer, correctAnswerText, type, correctAnswerNumber } = req.body;
   if (text !== undefined) data.questions[idx].text = text.trim();
   if (options !== undefined) data.questions[idx].options = Array.isArray(options) ? options.filter(o => o && o.trim()) : [];
   if (correctAnswer !== undefined) data.questions[idx].correctAnswer = correctAnswer;
   if (correctAnswerText !== undefined) data.questions[idx].correctAnswerText = correctAnswerText ? correctAnswerText.trim() : null;
+  if (type !== undefined) data.questions[idx].type = type;
+  if (correctAnswerNumber !== undefined) data.questions[idx].correctAnswerNumber = correctAnswerNumber != null ? Number(correctAnswerNumber) : null;
 
   saveQuestions(data);
   res.json(data.questions[idx]);
@@ -238,20 +251,34 @@ wss.on('connection', (ws) => {
         if (!gameState.answersScored) {
           const question = getActiveQuestion();
           if (question) {
-            Object.entries(gameState.playerAnswers).forEach(([pid, pa]) => {
-              let correct = false;
-              const hasCorrectIdx = question.correctAnswer !== null && question.correctAnswer !== undefined;
-              if (hasCorrectIdx && question.options && question.options.length > 0) {
-                correct = Number(pa.answer) === Number(question.correctAnswer);
-              } else if (question.correctAnswerText) {
-                correct = String(pa.answer).toLowerCase().trim() === String(question.correctAnswerText).toLowerCase().trim();
+            const qType = getQuestionType(question);
+            if (qType === 'estimate' && question.correctAnswerNumber != null) {
+              const correct = Number(question.correctAnswerNumber);
+              const parsed = Object.entries(gameState.playerAnswers).map(([pid, pa]) => ({
+                pid, pa, val: parseFloat(String(pa.answer).replace(',', '.')),
+              })).filter(x => !isNaN(x.val));
+              if (parsed.length > 0) {
+                const minDist = Math.min(...parsed.map(x => Math.abs(x.val - correct)));
+                parsed.forEach(({ pid, pa, val }) => {
+                  if (!gameState.scores[pid]) gameState.scores[pid] = { name: pa.name, points: 0 };
+                  gameState.scores[pid].name = pa.name;
+                  if (Math.abs(val - correct) === minDist) gameState.scores[pid].points += 1;
+                });
               }
-              if (!gameState.scores[pid]) {
-                gameState.scores[pid] = { name: pa.name, points: 0 };
-              }
-              gameState.scores[pid].name = pa.name;
-              if (correct) gameState.scores[pid].points += 1;
-            });
+            } else {
+              Object.entries(gameState.playerAnswers).forEach(([pid, pa]) => {
+                let correct = false;
+                const hasCorrectIdx = question.correctAnswer !== null && question.correctAnswer !== undefined;
+                if (hasCorrectIdx && question.options && question.options.length > 0) {
+                  correct = Number(pa.answer) === Number(question.correctAnswer);
+                } else if (question.correctAnswerText) {
+                  correct = String(pa.answer).toLowerCase().trim() === String(question.correctAnswerText).toLowerCase().trim();
+                }
+                if (!gameState.scores[pid]) gameState.scores[pid] = { name: pa.name, points: 0 };
+                gameState.scores[pid].name = pa.name;
+                if (correct) gameState.scores[pid].points += 1;
+              });
+            }
             gameState.answersScored = true;
           }
         }

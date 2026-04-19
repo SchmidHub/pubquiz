@@ -136,6 +136,14 @@
   <div class="modal">
     <h2 id="modalTitle">Neue Frage erstellen</h2>
     <div class="form-group">
+      <label>Fragetyp *</label>
+      <div class="type-btn-group">
+        <button type="button" class="type-btn" id="typeBtnMultiple" onclick="selectQuestionType('multiple')">Multiple Choice</button>
+        <button type="button" class="type-btn" id="typeBtnFreetext" onclick="selectQuestionType('freetext')">Freitext</button>
+        <button type="button" class="type-btn" id="typeBtnEstimate" onclick="selectQuestionType('estimate')">Schätzfrage</button>
+      </div>
+    </div>
+    <div class="form-group">
       <label>Fragetext *</label>
       <textarea id="qText" placeholder="Wie lautet die Frage?"></textarea>
     </div>
@@ -151,17 +159,24 @@
         </button>
       </div>
     </div>
-    <div class="form-group">
-      <label>Antwortmöglichkeiten (0–4, optional)</label>
+    <!-- Multiple Choice -->
+    <div class="form-group hidden" id="mcSection">
+      <label>Antwortmöglichkeiten (0–4)</label>
       <div class="options-list" id="optionsList"></div>
       <button type="button" class="btn-ghost mt-2" id="addOptionBtn" onclick="addOption()" style="font-size:0.85rem;">
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
         Option hinzufügen
       </button>
     </div>
-    <div class="form-group" id="correctAnswerTextGroup">
-      <label>Richtige Antwort (für Auflösung, optional)</label>
+    <!-- Freitext -->
+    <div class="form-group hidden" id="freetextSection">
+      <label>Richtige Antwort (optional)</label>
       <input type="text" id="correctAnswerText" placeholder="z.B. Paris">
+    </div>
+    <!-- Schätzfrage -->
+    <div class="form-group hidden" id="estimateSection">
+      <label>Richtige Antwort (Zahl) *</label>
+      <input type="text" id="correctAnswerNumber" placeholder="z.B. 1969 oder -5,5">
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal()">Abbrechen</button>
@@ -191,7 +206,7 @@ function updateIcons(t) {
 // ── State ──
 let questions = [];
 let gameState = { activeQuestionId: null, showAnswer: false, playerAnswers: [], scores: {}, players: [] };
-let editingId = null, pendingImageFile = null, currentImagePath = null, correctAnswerIdx = null, ws = null;
+let editingId = null, pendingImageFile = null, currentImagePath = null, correctAnswerIdx = null, questionType = null, ws = null;
 
 // ── WebSocket ──
 function connectWS() {
@@ -225,6 +240,13 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 function renderPlayTab() { renderPlayList(); renderControlPanel(); }
 
+function qTypeLabel(q) {
+  const t = q.type || (q.options && q.options.length > 0 ? 'multiple' : (q.correctAnswerNumber != null ? 'estimate' : 'freetext'));
+  if (t === 'multiple') return q.options.length + ' Antwortoptionen';
+  if (t === 'estimate') return 'Schätzfrage';
+  return 'Freitext';
+}
+
 function renderPlayList() {
   const el = document.getElementById('playQuestionList');
   if (!questions.length) { el.innerHTML = '<div class="empty-hint">Noch keine Fragen. Erstelle Fragen im Tab „Fragen".</div>'; return; }
@@ -234,7 +256,7 @@ function renderPlayList() {
       <div class="q-number">${i + 1}</div>
       <div class="q-body">
         <div class="q-text">${esc(q.text)}</div>
-        <div class="q-meta">${q.options.length ? q.options.length + ' Antwortoptionen' : 'Freitext'}</div>
+        <div class="q-meta">${qTypeLabel(q)}</div>
       </div>
       <div class="q-actions">
         <button class="btn-primary" style="font-size:0.8rem;padding:0.35rem 0.7rem;" onclick="setQuestion('${q.id}')">
@@ -262,17 +284,32 @@ function renderControlPanel() {
   const container = document.getElementById('answersContainer');
   const pa = gameState.playerAnswers;
   if (!Object.keys(pa).length) { container.innerHTML = '<div class="empty-hint" style="padding:0.5rem 0;">Noch keine Antworten.</div>'; return; }
-  const rows = Object.values(pa).map(a => {
-    let d = esc(String(a.answer)), cls = '';
-    if (gameState.showAnswer && aq.correctAnswer !== undefined && aq.correctAnswer !== null) {
-      cls = Number(a.answer) === Number(aq.correctAnswer) ? 'answer-correct-cell' : 'answer-wrong-cell';
-      if (aq.options && aq.options.length) d = esc(aq.options[a.answer] || String(a.answer));
-    } else if (gameState.showAnswer && aq.correctAnswerText) {
-      cls = String(a.answer).toLowerCase().trim() === String(aq.correctAnswerText).toLowerCase().trim() ? 'answer-correct-cell' : 'answer-wrong-cell';
-    } else if (aq.options && aq.options.length) d = esc(aq.options[a.answer] || String(a.answer));
-    return `<tr><td>${esc(a.name)}</td><td class="${cls}">${d}</td></tr>`;
-  });
-  container.innerHTML = `<table class="answers-table"><thead><tr><th>Spieler</th><th>Antwort</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  const qType = aq ? (aq.type || (aq.options && aq.options.length > 0 ? 'multiple' : 'freetext')) : 'freetext';
+  if (qType === 'estimate' && gameState.showAnswer && aq.correctAnswerNumber != null) {
+    const correct = aq.correctAnswerNumber;
+    const entries = Object.values(pa).map(a => ({ name: a.name, raw: a.answer, val: parseFloat(String(a.answer).replace(',', '.')) })).filter(x => !isNaN(x.val));
+    entries.sort((a, b) => Math.abs(a.val - correct) - Math.abs(b.val - correct));
+    const minDist = entries.length ? Math.abs(entries[0].val - correct) : null;
+    const rows = entries.map((a, i) => {
+      const dist = Math.abs(a.val - correct);
+      const cls = dist === minDist ? 'answer-correct-cell' : '';
+      const diffStr = dist === 0 ? 'Genau!' : `Δ ${dist.toLocaleString('de-DE')}`;
+      return `<tr><td style="color:var(--text-muted);font-size:0.82rem;">${i+1}</td><td>${esc(a.name)}</td><td class="${cls}">${esc(String(a.raw))}</td><td style="font-size:0.8rem;color:var(--text-muted)">${diffStr}</td></tr>`;
+    });
+    container.innerHTML = `<table class="answers-table"><thead><tr><th>#</th><th>Spieler</th><th>Schätzung</th><th>Differenz</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  } else {
+    const rows = Object.values(pa).map(a => {
+      let d = esc(String(a.answer)), cls = '';
+      if (gameState.showAnswer && aq.correctAnswer !== undefined && aq.correctAnswer !== null) {
+        cls = Number(a.answer) === Number(aq.correctAnswer) ? 'answer-correct-cell' : 'answer-wrong-cell';
+        if (aq.options && aq.options.length) d = esc(aq.options[a.answer] || String(a.answer));
+      } else if (gameState.showAnswer && aq.correctAnswerText) {
+        cls = String(a.answer).toLowerCase().trim() === String(aq.correctAnswerText).toLowerCase().trim() ? 'answer-correct-cell' : 'answer-wrong-cell';
+      } else if (aq.options && aq.options.length) d = esc(aq.options[a.answer] || String(a.answer));
+      return `<tr><td>${esc(a.name)}</td><td class="${cls}">${d}</td></tr>`;
+    });
+    container.innerHTML = `<table class="answers-table"><thead><tr><th>Spieler</th><th>Antwort</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
 }
 
 function setQuestion(id) { send({ type: 'master_set_question', questionId: id }); }
@@ -295,17 +332,18 @@ function renderScoreboard(id) {
 function renderEditTab() {
   const el = document.getElementById('editQuestionList');
   if (!questions.length) { el.innerHTML = '<div class="empty-hint">Noch keine Fragen.</div>'; return; }
-  el.innerHTML = questions.map((q, i) => `
+  el.innerHTML = questions.map((q, i) => {
+    const t = q.type || (q.options && q.options.length > 0 ? 'multiple' : (q.correctAnswerNumber != null ? 'estimate' : 'freetext'));
+    let metaDetail = '';
+    if (t === 'multiple') metaDetail = q.options.map((o,oi)=>`<span style="color:${oi===q.correctAnswer?'var(--success)':'inherit'}">${esc(o)}${oi===q.correctAnswer?' ✓':''}</span>`).join(' · ');
+    else if (t === 'estimate') metaDetail = `Schätzfrage · Lösung: <span style="color:var(--success)">${q.correctAnswerNumber != null ? String(q.correctAnswerNumber).replace('.', ',') : '?'}</span>`;
+    else metaDetail = q.correctAnswerText ? `Freitext · Lösung: <span style="color:var(--success)">${esc(q.correctAnswerText)}</span>` : 'Freitext-Antwort';
+    return `
     <div class="question-item">
       <div class="q-number">${i+1}</div>
       <div class="q-body">
         <div class="q-text">${esc(q.text)}</div>
-        <div class="q-meta">
-          ${q.options.length
-            ? q.options.map((o,oi)=>`<span style="color:${oi===q.correctAnswer?'var(--success)':'inherit'}">${esc(o)}${oi===q.correctAnswer?' ✓':''}</span>`).join(' · ')
-            : (q.correctAnswerText ? `Freitext · Lösung: <span style="color:var(--success)">${esc(q.correctAnswerText)}</span>` : 'Freitext-Antwort')}
-          ${q.image ? ' · Bild' : ''}
-        </div>
+        <div class="q-meta">${metaDetail}${q.image ? ' · Bild' : ''}</div>
       </div>
       <div class="q-actions">
         <button class="btn-icon btn-ghost" title="Bearbeiten" onclick="openEditModal('${q.id}')">
@@ -318,13 +356,25 @@ function renderEditTab() {
           </svg>
         </button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 let optionCount = 0;
 
+function selectQuestionType(type) {
+  questionType = type;
+  ['multiple', 'freetext', 'estimate'].forEach(t => {
+    const id = 'typeBtn' + t.charAt(0).toUpperCase() + t.slice(1);
+    document.getElementById(id).classList.toggle('active', t === type);
+  });
+  document.getElementById('mcSection').classList.toggle('hidden', type !== 'multiple');
+  document.getElementById('freetextSection').classList.toggle('hidden', type !== 'freetext');
+  document.getElementById('estimateSection').classList.toggle('hidden', type !== 'estimate');
+}
+
 function openCreateModal() {
-  editingId = null; pendingImageFile = null; currentImagePath = null; correctAnswerIdx = null; optionCount = 0;
+  editingId = null; pendingImageFile = null; currentImagePath = null; correctAnswerIdx = null; optionCount = 0; questionType = null;
   document.getElementById('modalTitle').textContent = 'Neue Frage erstellen';
   document.getElementById('qText').value = '';
   document.getElementById('optionsList').innerHTML = '';
@@ -333,7 +383,11 @@ function openCreateModal() {
   document.getElementById('imageDropLabel').textContent = 'Bild hier ablegen oder klicken zum Auswählen';
   document.getElementById('addOptionBtn').style.display = '';
   document.getElementById('correctAnswerText').value = '';
-  document.getElementById('correctAnswerTextGroup').classList.remove('hidden');
+  document.getElementById('correctAnswerNumber').value = '';
+  ['typeBtnMultiple','typeBtnFreetext','typeBtnEstimate'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('mcSection').classList.add('hidden');
+  document.getElementById('freetextSection').classList.add('hidden');
+  document.getElementById('estimateSection').classList.add('hidden');
   document.getElementById('questionModal').classList.remove('hidden');
 }
 
@@ -341,6 +395,7 @@ function openEditModal(id) {
   const q = questions.find(x => x.id === id); if (!q) return;
   editingId = id; pendingImageFile = null; currentImagePath = q.image || null;
   correctAnswerIdx = q.correctAnswer !== undefined ? q.correctAnswer : null; optionCount = 0;
+  const detectedType = q.type || (q.options && q.options.length > 0 ? 'multiple' : (q.correctAnswerNumber != null ? 'estimate' : 'freetext'));
   document.getElementById('modalTitle').textContent = 'Frage bearbeiten';
   document.getElementById('qText').value = q.text;
   if (q.image) {
@@ -357,7 +412,8 @@ function openEditModal(id) {
   q.options.forEach(opt => addOption(opt));
   document.getElementById('addOptionBtn').style.display = optionCount >= 4 ? 'none' : '';
   document.getElementById('correctAnswerText').value = q.correctAnswerText || '';
-  document.getElementById('correctAnswerTextGroup').classList.toggle('hidden', q.options.length > 0);
+  document.getElementById('correctAnswerNumber').value = q.correctAnswerNumber != null ? String(q.correctAnswerNumber).replace('.', ',') : '';
+  selectQuestionType(detectedType);
   document.getElementById('questionModal').classList.remove('hidden');
 }
 
@@ -378,7 +434,6 @@ function addOption(value = '') {
     </button>`;
   document.getElementById('optionsList').appendChild(li);
   if (optionCount >= 4) document.getElementById('addOptionBtn').style.display = 'none';
-  document.getElementById('correctAnswerTextGroup').classList.add('hidden');
 }
 
 function removeOption(btn) {
@@ -391,7 +446,6 @@ function removeOption(btn) {
     r.querySelector('.option-correct').classList.remove('selected');
   });
   document.getElementById('addOptionBtn').style.display = optionCount >= 4 ? 'none' : '';
-  document.getElementById('correctAnswerTextGroup').classList.toggle('hidden', optionCount > 0);
 }
 
 function setCorrect(idx) {
@@ -434,9 +488,21 @@ drop.addEventListener('drop', e => {
 async function saveQuestion() {
   const text = document.getElementById('qText').value.trim();
   if (!text) { alert('Bitte gib einen Fragetext ein.'); return; }
-  const options = [...document.querySelectorAll('#optionsList .option-row input[type=text]')].map(i => i.value.trim()).filter(Boolean);
-  const correctAnswerText = document.getElementById('correctAnswerText').value.trim();
-  const body = { text, options, correctAnswer: options.length > 0 ? correctAnswerIdx : null, correctAnswerText: options.length === 0 ? (correctAnswerText || null) : null };
+  if (!questionType) { alert('Bitte wähle einen Fragetyp aus.'); return; }
+  let options = [], correctAnswer = null, correctAnswerText = null, correctAnswerNumber = null;
+  if (questionType === 'multiple') {
+    options = [...document.querySelectorAll('#optionsList .option-row input[type=text]')].map(i => i.value.trim()).filter(Boolean);
+    correctAnswer = options.length > 0 ? correctAnswerIdx : null;
+  } else if (questionType === 'freetext') {
+    correctAnswerText = document.getElementById('correctAnswerText').value.trim() || null;
+  } else if (questionType === 'estimate') {
+    const raw = document.getElementById('correctAnswerNumber').value.trim();
+    if (!raw) { alert('Bitte gib die richtige Antwort ein.'); return; }
+    const num = parseFloat(raw.replace(',', '.'));
+    if (isNaN(num)) { alert('Bitte gib eine gültige Zahl ein.'); return; }
+    correctAnswerNumber = num;
+  }
+  const body = { text, type: questionType, options, correctAnswer, correctAnswerText, correctAnswerNumber };
   let savedQ;
   if (editingId) {
     const res = await fetch(`/api/questions/${editingId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });

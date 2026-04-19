@@ -410,6 +410,47 @@ textarea { resize: vertical; min-height: 80px; }
   animation: wrong-shake 0.38s cubic-bezier(.36,.07,.19,.97) forwards;
 }
 
+/* ── Question type selector ── */
+.type-btn-group { display: flex; gap: 0.5rem; }
+.type-btn {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.55rem 0.5rem;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.type-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text); opacity: 1; }
+.type-btn.active { border-color: var(--accent); background: var(--surface); color: var(--text); }
+
+/* ── Estimate reveal list ── */
+.estimate-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+}
+.estimate-item.estimate-winner { border-color: var(--success); }
+.estimate-item.estimate-mine { border-width: 2px; }
+.estimate-item.estimate-winner.estimate-mine { background: color-mix(in srgb, var(--success) 10%, var(--surface2)); }
+.estimate-rank { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); min-width: 1.2rem; }
+.estimate-item.estimate-winner .estimate-rank { color: var(--success); }
+.estimate-value { flex: 1; font-weight: 500; }
+.estimate-item.estimate-winner .estimate-value { color: var(--success); }
+.estimate-team { font-weight: 400; color: var(--text-muted); }
+.estimate-diff { font-size: 0.78rem; color: var(--text-muted); flex-shrink: 0; }
+.estimate-item.estimate-winner .estimate-diff { color: var(--success); }
+
 /* ── Misc ── */
 .section-title {
   font-size: 0.72rem; font-weight: 600; color: var(--text-muted);
