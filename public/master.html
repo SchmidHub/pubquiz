@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,62 +8,93 @@
 </head>
 <body>
 <header>
-  <h1>🎤 PubQuiz</h1>
+  <div class="logo">
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 9c0 3.9-3.6 7-8 7a9.3 9.3 0 01-3-.5L2 17l1.5-3.8A6.8 6.8 0 012 9c0-3.9 3.6-7 8-7s8 3.1 8 7z"/>
+      <path d="M8 6.5a2 2 0 013.7 1c0 1.3-1.7 1.8-1.7 3"/>
+      <circle cx="10" cy="12.5" r="0.6" fill="currentColor" stroke="none"/>
+    </svg>
+    PubQuiz
+  </div>
   <span class="badge">Fragenmaster</span>
-  <span class="status-dot" id="statusDot" title="Verbindungsstatus"></span>
+  <div class="header-right">
+    <span class="status-dot" id="statusDot" title="Verbindungsstatus"></span>
+    <button class="theme-toggle" id="themeToggle" title="Theme wechseln">
+      <svg id="iconSun" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <circle cx="7.5" cy="7.5" r="2.5"/>
+        <line x1="7.5" y1="1" x2="7.5" y2="2.5"/><line x1="7.5" y1="12.5" x2="7.5" y2="14"/>
+        <line x1="1" y1="7.5" x2="2.5" y2="7.5"/><line x1="12.5" y1="7.5" x2="14" y2="7.5"/>
+        <line x1="3" y1="3" x2="4.1" y2="4.1"/><line x1="10.9" y1="10.9" x2="12" y2="12"/>
+        <line x1="12" y1="3" x2="10.9" y2="4.1"/><line x1="4.1" y1="10.9" x2="3" y2="12"/>
+      </svg>
+      <svg id="iconMoon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+        <path d="M13 9.5a6 6 0 01-7.5-7.5A5.5 5.5 0 1013 9.5z" fill="currentColor" stroke="none"/>
+      </svg>
+    </button>
+  </div>
 </header>
 
 <div class="container">
   <div class="tabs">
     <button class="tab active" data-tab="play">Spielen</button>
     <button class="tab" data-tab="scores">Punkte</button>
-    <button class="tab" data-tab="edit">Fragen verwalten</button>
+    <button class="tab" data-tab="edit">Fragen</button>
   </div>
 
   <!-- ═══ TAB: SPIELEN ═══ -->
   <div class="tab-content active" id="tab-play">
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
-
-      <!-- Fragenliste zum Auswählen -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
       <div>
         <div class="section-title">Frage auswählen</div>
         <div class="questions-list" id="playQuestionList">
-          <div class="empty-hint">Noch keine Fragen. Erstelle erst Fragen im Tab "Fragen verwalten".</div>
+          <div class="empty-hint">Noch keine Fragen. Erstelle Fragen im Tab „Fragen".</div>
         </div>
-        <div class="mt-4 flex gap-2">
-          <button class="btn-ghost" onclick="setQuestion(null)">⏹ Keine Frage anzeigen</button>
+        <div class="mt-4">
+          <button class="btn-ghost" onclick="setQuestion(null)">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1.5" y="1.5" width="10" height="10" rx="1"/></svg>
+            Keine Frage anzeigen
+          </button>
         </div>
       </div>
 
-      <!-- Spielsteuerung -->
       <div>
         <div class="section-title">Spielsteuerung</div>
         <div class="card" id="controlPanel">
-          <div id="noActiveQ" class="empty-hint" style="padding:1rem 0;">
-            Wähle links eine Frage aus, um sie zu starten.
-          </div>
+          <div id="noActiveQ" class="empty-hint" style="padding:1rem 0;">Wähle links eine Frage aus.</div>
           <div id="activeQPanel" class="hidden">
-            <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;">Aktive Frage:</div>
-            <div id="activeQText" style="font-weight:600;margin-bottom:1rem;"></div>
-            <div id="activeQImage" style="margin-bottom:1rem;"></div>
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem;">Aktive Frage</div>
+            <div id="activeQText" style="font-weight:600;margin-bottom:1rem;font-size:0.95rem;"></div>
+            <div id="activeQImage" style="margin-bottom:0.85rem;"></div>
 
-            <!-- Spielerstatus -->
-            <div id="playerStats" style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
-              <span id="statTotal" style="font-size:0.85rem;padding:0.3rem 0.7rem;background:var(--bg-card);border-radius:99px;border:1px solid var(--border);">👥 0 Spieler</span>
-              <span id="statAnswered" style="font-size:0.85rem;padding:0.3rem 0.7rem;background:var(--bg-card);border-radius:99px;border:1px solid var(--border);color:var(--success);">✅ 0 geantwortet</span>
-              <span id="statPending" style="font-size:0.85rem;padding:0.3rem 0.7rem;background:var(--bg-card);border-radius:99px;border:1px solid var(--border);color:var(--text-muted);">⏳ 0 ausstehend</span>
+            <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+              <span class="stat-pill" id="statTotal">
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="4" r="2"/><path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="10.5" cy="4" r="1.5"/><path d="M10.5 8c1.4 0 2.5.9 2.5 2.5"/></svg>
+                0 Spieler
+              </span>
+              <span class="stat-pill answered" id="statAnswered">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>
+                0 geantwortet
+              </span>
+              <span class="stat-pill" id="statPending">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="4.5"/><polyline points="6,3.5 6,6 7.8,7.8"/></svg>
+                0 ausstehend
+              </span>
             </div>
 
-            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
-              <button class="btn-success" id="revealBtn" onclick="revealAnswer()">✅ Lösung aufdecken</button>
-              <button class="btn-ghost" id="hideBtn" onclick="hideAnswer()" style="display:none">🔄 Antworten zurücksetzen</button>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+              <button class="btn-success" id="revealBtn" onclick="revealAnswer()">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,6.5 5,10 11.5,3"/></svg>
+                Lösung aufdecken
+              </button>
+              <button class="btn-ghost" id="hideBtn" onclick="hideAnswer()" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="11" y2="11"/><line x1="11" y1="2" x2="2" y2="11"/></svg>
+                Zurücksetzen
+              </button>
             </div>
 
             <div class="mt-4">
               <div class="section-title" style="margin-bottom:0.5rem;">Antworten der Spieler</div>
-              <div id="answersContainer">
-                <div class="empty-hint" style="padding:0.5rem 0;">Noch keine Antworten.</div>
-              </div>
+              <div id="answersContainer"><div class="empty-hint" style="padding:0.5rem 0;">Noch keine Antworten.</div></div>
             </div>
           </div>
         </div>
@@ -73,58 +104,65 @@
 
   <!-- ═══ TAB: PUNKTE ═══ -->
   <div class="tab-content" id="tab-scores">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <div class="section-title" style="margin:0;">Punktestand</div>
-      <button class="btn-danger" onclick="resetScores()">🗑 Punkte zurücksetzen</button>
+      <button class="btn-ghost" onclick="resetScores()" style="color:var(--danger);border-color:var(--danger);">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1.5,3.5 11.5,3.5"/>
+          <path d="M4.5 3.5V2.5a.5.5 0 01.5-.5h3a.5.5 0 01.5.5v1"/>
+          <path d="M2.5 3.5l.6 7.5a.5.5 0 00.5.46h4.8a.5.5 0 00.5-.46l.6-7.5"/>
+        </svg>
+        Zurücksetzen
+      </button>
     </div>
-    <div class="card" id="scoreboardMaster">
-      <div class="empty-hint">Noch keine Punkte vergeben.</div>
-    </div>
+    <div class="card" id="scoreboardMaster"><div class="empty-hint">Noch keine Punkte vergeben.</div></div>
   </div>
 
-  <!-- ═══ TAB: FRAGEN VERWALTEN ═══ -->
+  <!-- ═══ TAB: FRAGEN ═══ -->
   <div class="tab-content" id="tab-edit">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <div class="section-title" style="margin:0;">Alle Fragen</div>
-      <button class="btn-primary" onclick="openCreateModal()">+ Neue Frage</button>
+      <button class="btn-primary" onclick="openCreateModal()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6.5" y1="1.5" x2="6.5" y2="11.5"/><line x1="1.5" y1="6.5" x2="11.5" y2="6.5"/></svg>
+        Neue Frage
+      </button>
     </div>
-    <div class="questions-list" id="editQuestionList">
-      <div class="empty-hint">Noch keine Fragen.</div>
-    </div>
+    <div class="questions-list" id="editQuestionList"><div class="empty-hint">Noch keine Fragen.</div></div>
   </div>
 </div>
 
-<!-- ═══ MODAL: Frage erstellen/bearbeiten ═══ -->
+<!-- ═══ MODAL ═══ -->
 <div class="modal-overlay hidden" id="questionModal">
   <div class="modal">
     <h2 id="modalTitle">Neue Frage erstellen</h2>
-
     <div class="form-group">
       <label>Fragetext *</label>
       <textarea id="qText" placeholder="Wie lautet die Frage?"></textarea>
     </div>
-
     <div class="form-group">
       <label>Bild (optional)</label>
       <div class="image-drop" id="imageDrop">
         <input type="file" id="imageFile" accept="image/*" onchange="handleImageSelect(event)">
         <span id="imageDropLabel">Bild hier ablegen oder klicken zum Auswählen</span>
         <img id="imagePreview" class="image-preview hidden" alt="Vorschau">
-        <button type="button" class="btn-ghost mt-2 hidden" id="removeImageBtn" onclick="removeImage()" style="font-size:0.8rem;">✕ Bild entfernen</button>
+        <button type="button" class="btn-ghost hidden" id="removeImageBtn" onclick="removeImage()" style="font-size:0.8rem;margin-top:0.5rem;">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5"/></svg>
+          Bild entfernen
+        </button>
       </div>
     </div>
-
     <div class="form-group">
       <label>Antwortmöglichkeiten (0–4, optional)</label>
       <div class="options-list" id="optionsList"></div>
-      <button type="button" class="btn-ghost mt-2" id="addOptionBtn" onclick="addOption()" style="font-size:0.85rem;">+ Option hinzufügen</button>
+      <button type="button" class="btn-ghost mt-2" id="addOptionBtn" onclick="addOption()" style="font-size:0.85rem;">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
+        Option hinzufügen
+      </button>
     </div>
-
     <div class="form-group" id="correctAnswerTextGroup">
       <label>Richtige Antwort (für Auflösung, optional)</label>
       <input type="text" id="correctAnswerText" placeholder="z.B. Paris">
     </div>
-
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal()">Abbrechen</button>
       <button class="btn-primary" onclick="saveQuestion()">Speichern</button>
@@ -133,50 +171,49 @@
 </div>
 
 <script>
+// ── Theme ──
+(function() {
+  const s = localStorage.getItem('pubquiz_theme') || 'dark';
+  document.documentElement.dataset.theme = s;
+  updateIcons(s);
+})();
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('pubquiz_theme', next);
+  updateIcons(next);
+});
+function updateIcons(t) {
+  document.getElementById('iconSun').style.display  = t === 'dark'  ? '' : 'none';
+  document.getElementById('iconMoon').style.display = t === 'light' ? '' : 'none';
+}
+
 // ── State ──
 let questions = [];
 let gameState = { activeQuestionId: null, showAnswer: false, playerAnswers: [], scores: {}, players: [] };
-let editingId = null;
-let pendingImageFile = null;
-let currentImagePath = null;
-let correctAnswerIdx = null;
-let ws = null;
+let editingId = null, pendingImageFile = null, currentImagePath = null, correctAnswerIdx = null, ws = null;
 
 // ── WebSocket ──
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
-
-  ws.onopen = () => setStatus(true);
+  ws.onopen  = () => setStatus(true);
   ws.onclose = () => { setStatus(false); setTimeout(connectWS, 2000); };
   ws.onerror = () => setStatus(false);
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'game_update') {
-      gameState = msg;
-      renderPlayTab();
-      renderScoreboard('scoreboardMaster');
-    }
+    if (msg.type === 'game_update') { gameState = msg; renderPlayTab(); renderScoreboard('scoreboardMaster'); }
   };
 }
-
-function setStatus(ok) {
-  const dot = document.getElementById('statusDot');
-  dot.className = 'status-dot ' + (ok ? 'connected' : 'disconnected');
-}
-
+function setStatus(ok) { document.getElementById('statusDot').className = 'status-dot ' + (ok ? 'connected' : 'disconnected'); }
 function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
 
-// ── Load questions ──
 async function loadQuestions() {
   const res = await fetch('/api/questions');
-  const data = await res.json();
-  questions = data.questions;
-  renderEditTab();
-  renderPlayTab();
+  questions = (await res.json()).questions;
+  renderEditTab(); renderPlayTab();
 }
 
-// ── Tabs ──
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -186,15 +223,11 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
-// ── Play tab rendering ──
-function renderPlayTab() {
-  renderPlayList();
-  renderControlPanel();
-}
+function renderPlayTab() { renderPlayList(); renderControlPanel(); }
 
 function renderPlayList() {
   const el = document.getElementById('playQuestionList');
-  if (!questions.length) { el.innerHTML = '<div class="empty-hint">Noch keine Fragen. Erstelle erst Fragen im Tab "Fragen verwalten".</div>'; return; }
+  if (!questions.length) { el.innerHTML = '<div class="empty-hint">Noch keine Fragen. Erstelle Fragen im Tab „Fragen".</div>'; return; }
   el.innerHTML = questions.map((q, i) => {
     const isActive = gameState.activeQuestion && gameState.activeQuestion.id === q.id;
     return `<div class="question-item ${isActive ? 'active-q' : ''}">
@@ -204,7 +237,10 @@ function renderPlayList() {
         <div class="q-meta">${q.options.length ? q.options.length + ' Antwortoptionen' : 'Freitext'}</div>
       </div>
       <div class="q-actions">
-        <button class="btn-primary" onclick="setQuestion('${q.id}')">▶ Spielen</button>
+        <button class="btn-primary" style="font-size:0.8rem;padding:0.35rem 0.7rem;" onclick="setQuestion('${q.id}')">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1.5,1 9.5,5.5 1.5,10"/></svg>
+          Spielen
+        </button>
       </div>
     </div>`;
   }).join('');
@@ -214,117 +250,81 @@ function renderControlPanel() {
   const aq = gameState.activeQuestion;
   document.getElementById('noActiveQ').classList.toggle('hidden', !!aq);
   document.getElementById('activeQPanel').classList.toggle('hidden', !aq);
-
   if (!aq) return;
-
   document.getElementById('activeQText').textContent = aq.text;
-  const imgEl = document.getElementById('activeQImage');
-  imgEl.innerHTML = aq.image ? `<img src="${aq.image}" style="max-width:100%;max-height:150px;border-radius:8px;object-fit:contain;">` : '';
-
-  const revealBtn = document.getElementById('revealBtn');
-  const hideBtn = document.getElementById('hideBtn');
-  revealBtn.style.display = gameState.showAnswer ? 'none' : '';
-  hideBtn.style.display = gameState.showAnswer ? '' : 'none';
-
-  // Player stats
-  const allPlayers = gameState.players || [];
-  const answered = allPlayers.filter(p => p.hasAnswered).length;
-  const pending = allPlayers.length - answered;
-  document.getElementById('statTotal').textContent = `👥 ${allPlayers.length} Spieler`;
-  document.getElementById('statAnswered').textContent = `✅ ${answered} geantwortet`;
-  document.getElementById('statPending').textContent = `⏳ ${pending} ausstehend`;
-
-  // Answers table
+  document.getElementById('activeQImage').innerHTML = aq.image ? `<img src="${aq.image}" style="max-width:100%;max-height:140px;border-radius:4px;object-fit:contain;">` : '';
+  document.getElementById('revealBtn').style.display = gameState.showAnswer ? 'none' : '';
+  document.getElementById('hideBtn').style.display   = gameState.showAnswer ? '' : 'none';
+  const all = gameState.players || [], answered = all.filter(p => p.hasAnswered).length;
+  document.getElementById('statTotal').lastChild.textContent    = ` ${all.length} Spieler`;
+  document.getElementById('statAnswered').lastChild.textContent = ` ${answered} geantwortet`;
+  document.getElementById('statPending').lastChild.textContent  = ` ${all.length - answered} ausstehend`;
   const container = document.getElementById('answersContainer');
-  const playerAnswers = gameState.playerAnswers;
-
-  if (Object.keys(playerAnswers).length === 0) {
-    container.innerHTML = '<div class="empty-hint" style="padding:0.5rem 0;">Noch keine Antworten.</div>';
-    return;
-  }
-
-  const rows = Object.values(playerAnswers).map(a => {
-    let answerDisplay = esc(String(a.answer));
-    let correctClass = '';
+  const pa = gameState.playerAnswers;
+  if (!Object.keys(pa).length) { container.innerHTML = '<div class="empty-hint" style="padding:0.5rem 0;">Noch keine Antworten.</div>'; return; }
+  const rows = Object.values(pa).map(a => {
+    let d = esc(String(a.answer)), cls = '';
     if (gameState.showAnswer && aq.correctAnswer !== undefined && aq.correctAnswer !== null) {
-      const correct = Number(a.answer) === Number(aq.correctAnswer);
-      correctClass = correct ? 'answer-correct-cell' : 'answer-wrong-cell';
-      if (aq.options && aq.options.length) {
-        answerDisplay = esc(aq.options[a.answer] || String(a.answer));
-      }
+      cls = Number(a.answer) === Number(aq.correctAnswer) ? 'answer-correct-cell' : 'answer-wrong-cell';
+      if (aq.options && aq.options.length) d = esc(aq.options[a.answer] || String(a.answer));
     } else if (gameState.showAnswer && aq.correctAnswerText) {
-      const correct = String(a.answer).toLowerCase().trim() === String(aq.correctAnswerText).toLowerCase().trim();
-      correctClass = correct ? 'answer-correct-cell' : 'answer-wrong-cell';
-    } else if (aq.options && aq.options.length) {
-      answerDisplay = esc(aq.options[a.answer] || String(a.answer));
-    }
-    return `<tr><td>${esc(a.name)}</td><td class="${correctClass}">${answerDisplay}</td></tr>`;
+      cls = String(a.answer).toLowerCase().trim() === String(aq.correctAnswerText).toLowerCase().trim() ? 'answer-correct-cell' : 'answer-wrong-cell';
+    } else if (aq.options && aq.options.length) d = esc(aq.options[a.answer] || String(a.answer));
+    return `<tr><td>${esc(a.name)}</td><td class="${cls}">${d}</td></tr>`;
   });
-
-  container.innerHTML = `<table class="answers-table">
-    <thead><tr><th>Spieler</th><th>Antwort</th></tr></thead>
-    <tbody>${rows.join('')}</tbody>
-  </table>`;
+  container.innerHTML = `<table class="answers-table"><thead><tr><th>Spieler</th><th>Antwort</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 
-// ── Game actions ──
 function setQuestion(id) { send({ type: 'master_set_question', questionId: id }); }
-function revealAnswer() { send({ type: 'master_reveal_answer' }); }
-function hideAnswer() { send({ type: 'master_hide_answer' }); }
-function resetScores() {
-  if (!confirm('Alle Punkte wirklich zurücksetzen?')) return;
-  send({ type: 'master_reset_scores' });
-}
+function revealAnswer()   { send({ type: 'master_reveal_answer' }); }
+function hideAnswer()     { send({ type: 'master_hide_answer' }); }
+function resetScores()    { if (!confirm('Alle Punkte wirklich zurücksetzen?')) return; send({ type: 'master_reset_scores' }); }
 
-// ── Scoreboard ──
-function renderScoreboard(containerId) {
-  const el = document.getElementById(containerId);
-  const scores = gameState.scores || {};
-  const entries = Object.values(scores).sort((a, b) => b.points - a.points);
-  if (!entries.length) {
-    el.innerHTML = '<div class="empty-hint">Noch keine Punkte vergeben.</div>';
-    return;
-  }
-  el.innerHTML = `<table class="answers-table">
-    <thead><tr><th>#</th><th>Spieler</th><th>Punkte</th></tr></thead>
-    <tbody>${entries.map((e, i) => `<tr>
-      <td style="color:var(--text-muted);font-size:0.85rem;">${i + 1}</td>
+function renderScoreboard(id) {
+  const el = document.getElementById(id);
+  const entries = Object.values(gameState.scores || {}).sort((a, b) => b.points - a.points);
+  if (!entries.length) { el.innerHTML = '<div class="empty-hint">Noch keine Punkte vergeben.</div>'; return; }
+  el.innerHTML = `<table class="answers-table"><thead><tr><th>#</th><th>Spieler</th><th>Punkte</th></tr></thead><tbody>
+    ${entries.map((e, i) => `<tr>
+      <td style="color:var(--text-muted);font-size:0.82rem;">${i+1}</td>
       <td>${esc(e.name)}</td>
       <td style="font-weight:600;color:var(--success);">${e.points}</td>
-    </tr>`).join('')}</tbody>
-  </table>`;
+    </tr>`).join('')}</tbody></table>`;
 }
 
-// ── Edit tab rendering ──
 function renderEditTab() {
   const el = document.getElementById('editQuestionList');
   if (!questions.length) { el.innerHTML = '<div class="empty-hint">Noch keine Fragen.</div>'; return; }
   el.innerHTML = questions.map((q, i) => `
     <div class="question-item">
-      <div class="q-number">${i + 1}</div>
+      <div class="q-number">${i+1}</div>
       <div class="q-body">
         <div class="q-text">${esc(q.text)}</div>
         <div class="q-meta">
-          ${q.options.length ? q.options.map((o, oi) => `<span style="color:${oi === q.correctAnswer ? 'var(--success)' : 'inherit'}">${esc(o)}${oi === q.correctAnswer ? ' ✓' : ''}</span>`).join(' · ') : (q.correctAnswerText ? `Freitext · Lösung: <span style="color:var(--success)">${esc(q.correctAnswerText)}</span>` : 'Freitext-Antwort')}
-          ${q.image ? ' · 🖼️ Bild' : ''}
+          ${q.options.length
+            ? q.options.map((o,oi)=>`<span style="color:${oi===q.correctAnswer?'var(--success)':'inherit'}">${esc(o)}${oi===q.correctAnswer?' ✓':''}</span>`).join(' · ')
+            : (q.correctAnswerText ? `Freitext · Lösung: <span style="color:var(--success)">${esc(q.correctAnswerText)}</span>` : 'Freitext-Antwort')}
+          ${q.image ? ' · Bild' : ''}
         </div>
       </div>
       <div class="q-actions">
-        <button class="btn-ghost btn-icon" title="Bearbeiten" onclick="openEditModal('${q.id}')">✏️</button>
-        <button class="btn-danger btn-icon" title="Löschen" onclick="deleteQuestion('${q.id}')">🗑️</button>
+        <button class="btn-icon btn-ghost" title="Bearbeiten" onclick="openEditModal('${q.id}')">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 2l2.5 2.5L4 11H1.5V8.5L8.5 2z"/></svg>
+        </button>
+        <button class="btn-icon btn-ghost" title="Löschen" onclick="deleteQuestion('${q.id}')" style="color:var(--danger);">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1.5,3.5 11.5,3.5"/><path d="M4.5 3.5V2.5a.5.5 0 01.5-.5h3a.5.5 0 01.5.5v1"/>
+            <path d="M2.5 3.5l.6 7.5a.5.5 0 00.5.46h4.8a.5.5 0 00.5-.46l.6-7.5"/>
+          </svg>
+        </button>
       </div>
     </div>`).join('');
 }
 
-// ── Modal ──
 let optionCount = 0;
 
 function openCreateModal() {
-  editingId = null;
-  pendingImageFile = null;
-  currentImagePath = null;
-  correctAnswerIdx = null;
-  optionCount = 0;
+  editingId = null; pendingImageFile = null; currentImagePath = null; correctAnswerIdx = null; optionCount = 0;
   document.getElementById('modalTitle').textContent = 'Neue Frage erstellen';
   document.getElementById('qText').value = '';
   document.getElementById('optionsList').innerHTML = '';
@@ -338,17 +338,11 @@ function openCreateModal() {
 }
 
 function openEditModal(id) {
-  const q = questions.find(x => x.id === id);
-  if (!q) return;
-  editingId = id;
-  pendingImageFile = null;
-  currentImagePath = q.image || null;
-  correctAnswerIdx = q.correctAnswer !== undefined ? q.correctAnswer : null;
-  optionCount = 0;
+  const q = questions.find(x => x.id === id); if (!q) return;
+  editingId = id; pendingImageFile = null; currentImagePath = q.image || null;
+  correctAnswerIdx = q.correctAnswer !== undefined ? q.correctAnswer : null; optionCount = 0;
   document.getElementById('modalTitle').textContent = 'Frage bearbeiten';
   document.getElementById('qText').value = q.text;
-
-  // Image
   if (q.image) {
     document.getElementById('imagePreview').src = q.image;
     document.getElementById('imagePreview').classList.remove('hidden');
@@ -359,53 +353,42 @@ function openEditModal(id) {
     document.getElementById('removeImageBtn').classList.add('hidden');
     document.getElementById('imageDropLabel').textContent = 'Bild hier ablegen oder klicken zum Auswählen';
   }
-
-  // Options
   document.getElementById('optionsList').innerHTML = '';
   q.options.forEach(opt => addOption(opt));
   document.getElementById('addOptionBtn').style.display = optionCount >= 4 ? 'none' : '';
-  // Freitext-Lösung
   document.getElementById('correctAnswerText').value = q.correctAnswerText || '';
   document.getElementById('correctAnswerTextGroup').classList.toggle('hidden', q.options.length > 0);
   document.getElementById('questionModal').classList.remove('hidden');
 }
 
-function closeModal() {
-  document.getElementById('questionModal').classList.add('hidden');
-}
+function closeModal() { document.getElementById('questionModal').classList.add('hidden'); }
 
 function addOption(value = '') {
   if (optionCount >= 4) return;
   const idx = optionCount++;
   const li = document.createElement('div');
-  li.className = 'option-row';
-  li.dataset.idx = idx;
+  li.className = 'option-row'; li.dataset.idx = idx;
   li.innerHTML = `
-    <button type="button" class="option-correct ${correctAnswerIdx === idx ? 'selected' : ''}" title="Als korrekt markieren" onclick="setCorrect(${idx})">✓</button>
-    <input type="text" placeholder="Antwort ${String.fromCharCode(65 + idx)}" value="${esc(value)}" oninput="syncOptionText(${idx}, this.value)">
-    <button type="button" class="btn-ghost btn-icon" onclick="removeOption(this)" title="Entfernen">✕</button>
-  `;
+    <button type="button" class="option-correct ${correctAnswerIdx===idx?'selected':''}" title="Als korrekt markieren" onclick="setCorrect(${idx})">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,5.5 4,8 9.5,2.5"/></svg>
+    </button>
+    <input type="text" placeholder="Antwort ${String.fromCharCode(65+idx)}" value="${esc(value)}">
+    <button type="button" class="btn-icon btn-ghost" onclick="removeOption(this)" title="Entfernen">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1.5" y1="1.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="1.5" x2="1.5" y2="9.5"/></svg>
+    </button>`;
   document.getElementById('optionsList').appendChild(li);
   if (optionCount >= 4) document.getElementById('addOptionBtn').style.display = 'none';
   document.getElementById('correctAnswerTextGroup').classList.add('hidden');
 }
 
 function removeOption(btn) {
-  const row = btn.closest('.option-row');
-  row.remove();
-  // Re-index
-  optionCount = 0;
-  correctAnswerIdx = null;
-  const rows = document.querySelectorAll('#optionsList .option-row');
-  rows.forEach((r, i) => {
-    r.dataset.idx = i;
-    optionCount = i + 1;
-    const correctBtn = r.querySelector('.option-correct');
-    const input = r.querySelector('input');
-    input.placeholder = `Antwort ${String.fromCharCode(65 + i)}`;
-    // Reset correct button onclick
-    correctBtn.onclick = () => setCorrect(i);
-    correctBtn.classList.remove('selected');
+  btn.closest('.option-row').remove();
+  optionCount = 0; correctAnswerIdx = null;
+  document.querySelectorAll('#optionsList .option-row').forEach((r, i) => {
+    r.dataset.idx = i; optionCount = i + 1;
+    r.querySelector('input').placeholder = `Antwort ${String.fromCharCode(65+i)}`;
+    r.querySelector('.option-correct').onclick = () => setCorrect(i);
+    r.querySelector('.option-correct').classList.remove('selected');
   });
   document.getElementById('addOptionBtn').style.display = optionCount >= 4 ? 'none' : '';
   document.getElementById('correctAnswerTextGroup').classList.toggle('hidden', optionCount > 0);
@@ -413,34 +396,26 @@ function removeOption(btn) {
 
 function setCorrect(idx) {
   correctAnswerIdx = correctAnswerIdx === idx ? null : idx;
-  document.querySelectorAll('#optionsList .option-correct').forEach((btn, i) => {
-    btn.classList.toggle('selected', i === correctAnswerIdx);
-  });
+  document.querySelectorAll('#optionsList .option-correct').forEach((b, i) => b.classList.toggle('selected', i === correctAnswerIdx));
 }
 
-function syncOptionText(idx, val) { /* value read from DOM on save */ }
-
 function handleImageSelect(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+  const file = e.target.files[0]; if (!file) return;
   pendingImageFile = file;
-  const url = URL.createObjectURL(file);
-  document.getElementById('imagePreview').src = url;
+  document.getElementById('imagePreview').src = URL.createObjectURL(file);
   document.getElementById('imagePreview').classList.remove('hidden');
   document.getElementById('removeImageBtn').classList.remove('hidden');
   document.getElementById('imageDropLabel').textContent = '';
 }
 
 function removeImage() {
-  pendingImageFile = null;
-  currentImagePath = null;
+  pendingImageFile = null; currentImagePath = null;
   document.getElementById('imagePreview').classList.add('hidden');
   document.getElementById('removeImageBtn').classList.add('hidden');
   document.getElementById('imageDropLabel').textContent = 'Bild hier ablegen oder klicken zum Auswählen';
   document.getElementById('imageFile').value = '';
 }
 
-// Drag & drop
 const drop = document.getElementById('imageDrop');
 drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
 drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
@@ -449,8 +424,7 @@ drop.addEventListener('drop', e => {
   const file = e.dataTransfer.files[0];
   if (file && file.type.startsWith('image/')) {
     pendingImageFile = file;
-    const url = URL.createObjectURL(file);
-    document.getElementById('imagePreview').src = url;
+    document.getElementById('imagePreview').src = URL.createObjectURL(file);
     document.getElementById('imagePreview').classList.remove('hidden');
     document.getElementById('removeImageBtn').classList.remove('hidden');
     document.getElementById('imageDropLabel').textContent = '';
@@ -460,41 +434,24 @@ drop.addEventListener('drop', e => {
 async function saveQuestion() {
   const text = document.getElementById('qText').value.trim();
   if (!text) { alert('Bitte gib einen Fragetext ein.'); return; }
-
-  const optionInputs = document.querySelectorAll('#optionsList .option-row input[type=text]');
-  const options = [...optionInputs].map(i => i.value.trim()).filter(Boolean);
-
+  const options = [...document.querySelectorAll('#optionsList .option-row input[type=text]')].map(i => i.value.trim()).filter(Boolean);
   const correctAnswerText = document.getElementById('correctAnswerText').value.trim();
-  const body = {
-    text,
-    options,
-    correctAnswer: options.length > 0 ? correctAnswerIdx : null,
-    correctAnswerText: options.length === 0 ? (correctAnswerText || null) : null,
-  };
-
+  const body = { text, options, correctAnswer: options.length > 0 ? correctAnswerIdx : null, correctAnswerText: options.length === 0 ? (correctAnswerText || null) : null };
   let savedQ;
   if (editingId) {
-    const res = await fetch(`/api/questions/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await fetch(`/api/questions/${editingId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
     savedQ = await res.json();
-    // Handle image removal
     const origQ = questions.find(q => q.id === editingId);
-    if (origQ && origQ.image && currentImagePath === null && !pendingImageFile) {
-      await fetch(`/api/questions/${editingId}/image`, { method: 'DELETE' });
-    }
+    if (origQ && origQ.image && currentImagePath === null && !pendingImageFile) await fetch(`/api/questions/${editingId}/image`, { method: 'DELETE' });
   } else {
-    const res = await fetch('/api/questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await fetch('/api/questions', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
     savedQ = await res.json();
   }
-
-  // Upload image if selected
   if (pendingImageFile && savedQ.id) {
-    const fd = new FormData();
-    fd.append('image', pendingImageFile);
+    const fd = new FormData(); fd.append('image', pendingImageFile);
     await fetch(`/api/questions/${savedQ.id}/image`, { method: 'POST', body: fd });
   }
-
-  closeModal();
-  await loadQuestions();
+  closeModal(); await loadQuestions();
 }
 
 async function deleteQuestion(id) {
@@ -503,12 +460,8 @@ async function deleteQuestion(id) {
   await loadQuestions();
 }
 
-// ── Utils ──
-function esc(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ── Init ──
 connectWS();
 loadQuestions();
 </script>
