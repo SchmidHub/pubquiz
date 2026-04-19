@@ -110,8 +110,8 @@
 
         <!-- Lösung -->
         <div id="revealBanner" class="hidden">
-          <div class="reveal-banner">
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <div class="reveal-banner" id="revealBannerInner">
+            <svg id="revealBannerIcon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="7.5" cy="7.5" r="6"/><polyline points="4.5,7.5 6.5,9.5 10.5,5.5"/>
             </svg>
             <span id="revealBannerText"></span>
@@ -187,7 +187,7 @@ function handleGameUpdate(msg) {
   const newQId = msg.activeQuestion ? msg.activeQuestion.id : null;
   const oldQId = currentQuestion ? currentQuestion.id : null;
   if (newQId !== oldQId) {
-    myAnswer = null; pendingAnswer = null;
+    myAnswer = null; pendingAnswer = null; revealAnimated = false;
     const fti = document.getElementById('freeTextInput');
     if (fti) fti.value = '';
   }
@@ -207,19 +207,24 @@ function applyGameState(msg) {
   document.getElementById('multipleChoiceArea').classList.toggle('hidden', !hasOptions);
   document.getElementById('freeTextArea').classList.toggle('hidden', hasOptions);
   if (hasOptions) renderOptions(q, msg.showAnswer); else renderFreeText(msg.showAnswer);
-  const bannerEl = document.getElementById('revealBanner');
-  const bannerText = document.getElementById('revealBannerText');
-  if (msg.showAnswer && q.correctAnswer !== null && q.correctAnswer !== undefined) {
-    const correctText = q.options && q.options.length ? q.options[q.correctAnswer] : String(q.correctAnswer);
-    bannerText.textContent = `Richtige Antwort: ${correctText}`;
-    bannerEl.classList.remove('hidden');
-  } else if (msg.showAnswer && q.correctAnswerText) {
+  const bannerEl    = document.getElementById('revealBanner');
+  const bannerInner = document.getElementById('revealBannerInner');
+  const bannerText  = document.getElementById('revealBannerText');
+  bannerInner.classList.remove('result-correct', 'result-wrong');
+  if (msg.showAnswer) {
     const myAnswered = myAnswer !== null;
-    const myCorrect  = myAnswered && String(myAnswer).toLowerCase().trim() === String(q.correctAnswerText).toLowerCase().trim();
-    bannerText.textContent = (myAnswered ? (myCorrect ? 'Richtig — ' : 'Falsch — ') : '') + `Richtige Antwort: ${q.correctAnswerText}`;
-    bannerEl.classList.remove('hidden');
-  } else if (msg.showAnswer) {
-    bannerText.textContent = 'Der Fragenmaster hat die Antworten aufgedeckt.';
+    let correctText = '', myCorrect = false;
+    if (q.correctAnswer !== null && q.correctAnswer !== undefined) {
+      correctText = q.options && q.options.length ? q.options[q.correctAnswer] : String(q.correctAnswer);
+      myCorrect = myAnswered && Number(myAnswer) === Number(q.correctAnswer);
+    } else if (q.correctAnswerText) {
+      correctText = q.correctAnswerText;
+      myCorrect = myAnswered && String(myAnswer).toLowerCase().trim() === String(q.correctAnswerText).toLowerCase().trim();
+    }
+    bannerText.textContent = correctText
+      ? (myAnswered ? (myCorrect ? 'Richtig — ' : 'Falsch — ') : '') + `Richtige Antwort: ${correctText}`
+      : 'Der Fragenmaster hat die Antworten aufgedeckt.';
+    if (myAnswered && correctText) bannerInner.classList.add(myCorrect ? 'result-correct' : 'result-wrong');
     bannerEl.classList.remove('hidden');
   } else {
     bannerEl.classList.add('hidden');
@@ -231,9 +236,14 @@ function showWaiting() {
   document.getElementById('questionScreen').classList.add('hidden');
 }
 
+let revealAnimated = false;
+
 function renderOptions(q, showAnswer) {
   const letters  = ['A','B','C','D'];
   const answered = myAnswer !== null;
+  const doAnim   = showAnswer && !revealAnimated;
+  if (showAnswer) revealAnimated = true;
+
   document.getElementById('answersGrid').innerHTML = q.options.map((opt, i) => {
     let cls = 'answer-btn';
     if (answered && String(myAnswer) === String(i)) cls += ' selected';
@@ -246,6 +256,12 @@ function renderOptions(q, showAnswer) {
       <span class="letter">${letters[i]}</span><span>${esc(opt)}</span>
     </button>`;
   }).join('');
+  if (doAnim) {
+    requestAnimationFrame(() => {
+      document.querySelectorAll('#answersGrid .answer-btn.correct-reveal, #answersGrid .answer-btn.wrong-reveal')
+        .forEach(btn => btn.classList.add('do-animate'));
+    });
+  }
   document.getElementById('answeredBadge').classList.toggle('hidden', !answered);
   document.getElementById('confirmArea').classList.toggle('hidden', answered || pendingAnswer === null || showAnswer);
 }
